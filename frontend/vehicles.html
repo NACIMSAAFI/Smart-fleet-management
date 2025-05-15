@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vehicle Fleet Management</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <!-- Navigation Bar -->
+  <nav class="nav-menu">
+    <div class="nav-logo-container">
+      <a href="dashboard.html" class="nav-logo">
+        <i class="fas fa-truck"></i> Fleet Management
+      </a>
+      <button class="nav-toggle" id="navToggle">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+    <div class="nav-links" id="navLinks">
+      <a href="dashboard.html" class="nav-link">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+      </a>
+      <a href="vehicles.html" class="nav-link active">
+        <i class="fas fa-car"></i> Vehicles
+      </a>
+      <a href="add_vehicle.html" class="nav-link">
+        <i class="fas fa-plus-circle"></i> Add Vehicle
+      </a>
+      <a href="login.html" class="nav-link">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <h1><i class="fas fa-car"></i> Vehicle Fleet Management</h1>
+    
+    <div class="message" id="message"></div>
+    
+    <div class="action-toolbar">
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" placeholder="Search vehicles..." aria-label="Search vehicles">
+      </div>
+      <div class="action-buttons">
+        <a href="add_vehicle.html" class="btn">
+          <i class="fas fa-plus"></i> Add New Vehicle
+        </a>
+        <button id="refreshBtn" class="btn btn-secondary">
+          <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+      </div>
+    </div>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th><i class="fas fa-id-card"></i> Plate Number</th>
+            <th><i class="fas fa-fingerprint"></i> Chassis Number</th>
+            <th><i class="fas fa-tag"></i> Brand</th>
+            <th><i class="fas fa-car-side"></i> Model</th>
+            <th><i class="fas fa-calendar-alt"></i> Year</th>
+            <th><i class="fas fa-cogs"></i> Actions</th>
+          </tr>
+        </thead>
+        <tbody id="vehiclesTable">
+          <!-- Vehicle data will be inserted here -->
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="loading" id="loadingIndicator">
+      <span class="spinner"></span> Loading vehicles...
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const vehiclesTable = document.getElementById('vehiclesTable');
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      const messageDiv = document.getElementById('message');
+      const searchInput = document.getElementById('searchInput');
+      const refreshBtn = document.getElementById('refreshBtn');
+      const navToggle = document.getElementById('navToggle');
+      const navLinks = document.getElementById('navLinks');
+      
+      // Mobile navigation toggle
+      navToggle.addEventListener('click', function() {
+        navLinks.classList.toggle('active');
+      });
+      
+      // Initialize vehicles array to store the data
+      let vehicles = [];
+      
+      // Show loading indicator
+      function showLoading() {
+        loadingIndicator.style.display = 'block';
+      }
+      
+      // Hide loading indicator
+      function hideLoading() {
+        loadingIndicator.style.display = 'none';
+      }
+      
+      // Show message with type: 'success', 'error', 'warning'
+      function showMessage(text, type = 'success') {
+        messageDiv.textContent = text;
+        messageDiv.className = `message ${type}`;
+        messageDiv.style.display = 'block';
+        
+        // Auto hide after 5 seconds
+        setTimeout(() => {
+          messageDiv.style.display = 'none';
+        }, 5000);
+      }
+      
+      // Fetch vehicles from API
+      async function fetchVehicles() {
+        showLoading();
+        
+        try {
+          const res = await fetch('http://localhost:3000/api/vehicles');
+          
+          if (!res.ok) {
+            throw new Error(`Server responded with status: ${res.status}`);
+          }
+          
+          vehicles = await res.json();
+          
+          hideLoading();
+          renderVehicles(vehicles);
+          
+        } catch (error) {
+          console.error('Error fetching vehicles:', error);
+          hideLoading();
+          showMessage('Unable to load vehicles. Please check your connection and try again.', 'error');
+          
+          // Show empty state
+          vehiclesTable.innerHTML = `
+            <tr>
+              <td colspan="6" class="no-data">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Connection error. Unable to fetch vehicles data.</p>
+              </td>
+            </tr>
+          `;
+        }
+      }
+      
+      // Render vehicles table
+      function renderVehicles(vehiclesToRender) {
+        if (vehiclesToRender.length === 0) {
+          vehiclesTable.innerHTML = `
+            <tr>
+              <td colspan="6" class="no-data">
+                <i class="fas fa-car-side"></i>
+                <p>No vehicles found in the system.</p>
+                <a href="add_vehicle.html" class="btn">Add Your First Vehicle</a>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+        
+        // Clear existing table content
+        vehiclesTable.innerHTML = '';
+        
+        // Add each vehicle to the table
+        vehiclesToRender.forEach(vehicle => {
+          const row = document.createElement('tr');
+          row.id = `vehicle-${vehicle.id}`;
+          
+          row.innerHTML = `
+            <td>${escapeHtml(vehicle.plate_number)}</td>
+            <td>${escapeHtml(vehicle.chassis_number)}</td>
+            <td>${escapeHtml(vehicle.brand)}</td>
+            <td>${escapeHtml(vehicle.model)}</td>
+            <td><span class="badge badge-blue">${escapeHtml(String(vehicle.year))}</span></td>
+            <td>
+              <button class="btn btn-secondary btn-sm edit-btn" data-id="${vehicle.id}" title="Edit">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button class="btn btn-danger btn-sm delete-btn" data-id="${vehicle.id}" title="Delete">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          `;
+          
+          vehiclesTable.appendChild(row);
+        });
+        
+        // Add event listeners to edit and delete buttons
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const vehicleId = this.getAttribute('data-id');
+            window.location.href = `edit_vehicle.html?id=${vehicleId}`;
+          });
+        });
+        
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+          btn.addEventListener('click', async function() {
+            const vehicleId = this.getAttribute('data-id');
+            if (confirm('Are you sure you want to delete this vehicle?')) {
+              deleteVehicle(vehicleId);
+            }
+          });
+        });
+      }
+      
+      // Delete vehicle
+      async function deleteVehicle(id) {
+        showLoading();
+        
+        try {
+          const res = await fetch(`http://localhost:3000/api/vehicles/${id}`, {
+            method: 'DELETE'
+          });
+          
+          if (!res.ok) {
+            throw new Error(`Server responded with status: ${res.status}`);
+          }
+          
+          // Remove from local array
+          vehicles = vehicles.filter(vehicle => vehicle.id !== id);
+          
+          hideLoading();
+          showMessage('Vehicle deleted successfully', 'success');
+          
+          // Re-render table
+          renderVehicles(vehicles);
+          
+        } catch (error) {
+          console.error('Error deleting vehicle:', error);
+          hideLoading();
+          showMessage('Failed to delete vehicle. Please try again.', 'error');
+        }
+      }
+      
+      // Filter vehicles based on search input
+      function filterVehicles() {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        
+        if (!searchTerm) {
+          renderVehicles(vehicles);
+          return;
+        }
+        
+        const filtered = vehicles.filter(vehicle => {
+          return (
+            vehicle.plate_number.toLowerCase().includes(searchTerm) ||
+            vehicle.chassis_number.toLowerCase().includes(searchTerm) ||
+            vehicle.brand.toLowerCase().includes(searchTerm) ||
+            vehicle.model.toLowerCase().includes(searchTerm) ||
+            String(vehicle.year).includes(searchTerm)
+          );
+        });
+        
+        renderVehicles(filtered);
+      }
+      
+      // Search input event listener
+      searchInput.addEventListener('input', filterVehicles);
+      
+      // Refresh button event listener
+      refreshBtn.addEventListener('click', fetchVehicles);
+      
+      // Escape HTML to prevent XSS
+      function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+      
+      // Fetch vehicles when the page loads
+      fetchVehicles();
+    });
+  </script>
+</body>
+</html>

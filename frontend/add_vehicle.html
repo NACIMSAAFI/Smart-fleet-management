@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add New Vehicle | Fleet Management</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <!-- Navigation Bar -->
+  <nav class="nav-menu">
+    <div class="nav-logo-container">
+      <a href="dashboard.html" class="nav-logo">
+        <i class="fas fa-truck"></i> Fleet Management
+      </a>
+      <button class="nav-toggle" id="navToggle">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+    <div class="nav-links" id="navLinks">
+      <a href="dashboard.html" class="nav-link">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+      </a>
+      <a href="vehicles.html" class="nav-link">
+        <i class="fas fa-car"></i> Vehicles
+      </a>
+      <a href="add_vehicle.html" class="nav-link active">
+        <i class="fas fa-plus-circle"></i> Add Vehicle
+      </a>
+      <a href="login.html" class="nav-link">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <h1><i class="fas fa-plus-circle"></i> Add New Vehicle</h1>
+    
+    <div class="message" id="message"></div>
+    
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Vehicle Information</h2>
+      </div>
+      <div class="card-body">
+        <form id="vehicleForm">
+          <div class="form-row">
+            <div class="form-col">
+              <div class="form-group">
+                <label for="plate_number">License Plate Number <span style="color: var(--error-color);">*</span></label>
+                <input type="text" id="plate_number" class="form-control" required>
+                <span class="help-text">Enter the vehicle's license plate number</span>
+                <span class="error-message" id="plate_number_error"></span>
+              </div>
+            </div>
+            <div class="form-col">
+              <div class="form-group">
+                <label for="chassis_number">Chassis Number (VIN) <span style="color: var(--error-color);">*</span></label>
+                <input type="text" id="chassis_number" class="form-control" required>
+                <span class="help-text">Enter the vehicle identification number</span>
+                <span class="error-message" id="chassis_number_error"></span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-col">
+              <div class="form-group">
+                <label for="brand">Brand <span style="color: var(--error-color);">*</span></label>
+                <input type="text" id="brand" class="form-control" required>
+                <span class="error-message" id="brand_error"></span>
+              </div>
+            </div>
+            <div class="form-col">
+              <div class="form-group">
+                <label for="model">Model <span style="color: var(--error-color);">*</span></label>
+                <input type="text" id="model" class="form-control" required>
+                <span class="error-message" id="model_error"></span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-col">
+              <div class="form-group">
+                <label for="year">Manufacturing Year <span style="color: var(--error-color);">*</span></label>
+                <input type="number" id="year" class="form-control" min="1900" max="2025" required>
+                <span class="help-text">Enter year between 1900 and 2025</span>
+                <span class="error-message" id="year_error"></span>
+              </div>
+            </div>
+            <div class="form-col">
+              <!-- Color field removed as it's not in the database -->
+            </div>
+          </div>
+          
+          <div class="loading" id="loadingIndicator">
+            <span class="spinner"></span> Processing your request...
+          </div>
+          
+          <div class="form-actions">
+            <a href="vehicles.html" class="btn btn-outline">Cancel</a>
+            <button type="submit" class="btn" id="submitBtn">Register Vehicle</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const form = document.getElementById('vehicleForm');
+      const plateInput = document.getElementById('plate_number');
+      const chassisInput = document.getElementById('chassis_number');
+      const brandInput = document.getElementById('brand');
+      const modelInput = document.getElementById('model');
+      const yearInput = document.getElementById('year');
+      // Color input removed as it's not in the database
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      const messageDiv = document.getElementById('message');
+      const submitBtn = document.getElementById('submitBtn');
+      const navToggle = document.getElementById('navToggle');
+      const navLinks = document.getElementById('navLinks');
+      
+      // Mobile navigation toggle
+      navToggle.addEventListener('click', function() {
+        navLinks.classList.toggle('active');
+      });
+      
+      // Set max year to current year
+      const currentYear = new Date().getFullYear();
+      yearInput.setAttribute('max', currentYear);
+      yearInput.setAttribute('placeholder', `1900 - ${currentYear}`);
+      document.querySelector('label[for="year"] + input + span.help-text').textContent = 
+        `Enter year between 1900 and ${currentYear}`;
+      
+      // Show message with type: 'success', 'error', 'warning'
+      function showMessage(text, type = 'success') {
+        messageDiv.textContent = text;
+        messageDiv.className = `message ${type}`;
+        messageDiv.style.display = 'block';
+        
+        // Scroll to message
+        messageDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Auto hide success messages after 5 seconds
+        if (type === 'success') {
+          setTimeout(() => {
+            messageDiv.style.display = 'none';
+          }, 5000);
+        }
+      }
+      
+      // Add input event listeners for real-time validation
+      plateInput.addEventListener('input', () => {
+        validateField(plateInput, 'plate_number_error', 'Please enter a valid license plate number');
+      });
+      
+      chassisInput.addEventListener('input', () => {
+        // Basic chassis/VIN validation
+        const chassis = chassisInput.value.trim();
+        if (!chassis) {
+          showError(chassisInput, 'chassis_number_error', 'Please enter a valid chassis number');
+        } else {
+          hideError(chassisInput, 'chassis_number_error');
+        }
+      });
+      
+      brandInput.addEventListener('input', () => {
+        validateField(brandInput, 'brand_error', 'Brand is required');
+      });
+      
+      modelInput.addEventListener('input', () => {
+        validateField(modelInput, 'model_error', 'Model is required');
+      });
+      
+      yearInput.addEventListener('input', () => {
+        const year = parseInt(yearInput.value);
+        
+        if (isNaN(year) || year < 1900 || year > currentYear) {
+          showError(yearInput, 'year_error', `Please enter a valid year between 1900 and ${currentYear}`);
+        } else {
+          hideError(yearInput, 'year_error');
+        }
+      });
+      
+      // Form submission
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Validate all fields before submission
+        const isPlateValid = validateField(plateInput, 'plate_number_error', 'Please enter a valid license plate number');
+        
+        // Chassis validation
+        let isChassisValid = validateField(chassisInput, 'chassis_number_error', 'Please enter a valid chassis number');
+        
+        const isBrandValid = validateField(brandInput, 'brand_error', 'Brand is required');
+        const isModelValid = validateField(modelInput, 'model_error', 'Model is required');
+        
+        const year = parseInt(yearInput.value);
+        let isYearValid = false;
+        
+        if (isNaN(year) || year < 1900 || year > currentYear) {
+          showError(yearInput, 'year_error', `Please enter a valid year between 1900 and ${currentYear}`);
+        } else {
+          hideError(yearInput, 'year_error');
+          isYearValid = true;
+        }
+        
+        if (!isPlateValid || !isChassisValid || !isBrandValid || !isModelValid || !isYearValid) {
+          showMessage('Please correct the errors in the form', 'error');
+          return;
+        }
+        
+        // Prepare data
+        const vehicle = {
+          plate_number: plateInput.value.trim(),
+          chassis_number: chassisInput.value.trim().toUpperCase(),
+          brand: brandInput.value.trim(),
+          model: modelInput.value.trim(),
+          year: year
+        };
+        
+        // Show loading indicator and disable submit button
+        loadingIndicator.style.display = 'block';
+        submitBtn.disabled = true;
+        messageDiv.style.display = 'none';
+        
+        try {
+          const res = await fetch('http://localhost:3000/api/vehicles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(vehicle)
+          });
+          
+          const data = await res.json();
+          
+          // Hide loading indicator
+          loadingIndicator.style.display = 'none';
+          submitBtn.disabled = false;
+          
+          if (res.ok) {
+            // Show success message
+            showMessage(data.message || 'Vehicle registered successfully!', 'success');
+            
+            // Reset form
+            form.reset();
+            
+            // Redirect to vehicles list after 2 seconds
+            setTimeout(() => {
+              window.location.href = 'vehicles.html';
+            }, 2000);
+          } else {
+            // Show error message
+            showMessage(data.message || 'Failed to register vehicle. Please try again.', 'error');
+          }
+          
+        } catch (error) {
+          console.error('Error:', error);
+          
+          // Hide loading indicator
+          loadingIndicator.style.display = 'none';
+          submitBtn.disabled = false;
+          
+          // Show connection error message
+          showMessage('Unable to connect to the server. Please check your connection and try again.', 'error');
+        }
+      });
+      
+      // Helper validation functions
+      function validateField(inputElement, errorId, errorMessage) {
+        if (!inputElement.value.trim()) {
+          showError(inputElement, errorId, errorMessage);
+          return false;
+        } else {
+          hideError(inputElement, errorId);
+          return true;
+        }
+      }
+      
+      function showError(inputElement, errorId, message) {
+        const errorElement = document.getElementById(errorId);
+        inputElement.classList.add('error');
+        errorElement.textContent = message;
+        errorElement.style.display = 'block';
+      }
+      
+      function hideError(inputElement, errorId) {
+        const errorElement = document.getElementById(errorId);
+        inputElement.classList.remove('error');
+        errorElement.style.display = 'none';
+      }
+      
+      // Utility function to format chassis to uppercase while typing
+      chassisInput.addEventListener('keyup', () => {
+        chassisInput.value = chassisInput.value.toUpperCase();
+      });
+      
+      // Initialize tooltip functionality (if needed)
+      const tooltips = document.querySelectorAll('[data-toggle="tooltip"]');
+      if (tooltips.length > 0) {
+        tooltips.forEach(tooltip => {
+          tooltip.addEventListener('mouseenter', () => {
+            const tooltipText = document.createElement('div');
+            tooltipText.className = 'tooltip-text';
+            tooltipText.innerText = tooltip.getAttribute('data-tooltip');
+            tooltip.appendChild(tooltipText);
+          });
+          
+          tooltip.addEventListener('mouseleave', () => {
+            const tooltipText = tooltip.querySelector('.tooltip-text');
+            if (tooltipText) {
+              tooltipText.remove();
+            }
+          });
+        });
+      }
+    });
+  </script>
+  
+  <footer style="text-align: center; margin-top: 40px; padding: 20px; color: var(--text-light); font-size: 14px; border-top: 1px solid var(--border-color);">
+    <p>&copy; 2025 Fleet Management System. All rights reserved.</p>
+  </footer>
+</body>
+</html>

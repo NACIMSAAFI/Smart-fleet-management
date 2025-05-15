@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fleet Status Calendar Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <!-- Add Chart.js if you want the chart visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Navigation Bar - Standardized from other pages -->
+    <nav class="nav-menu">
+        <div class="nav-logo-container">
+            <a href="dashboard.html" class="nav-logo">
+                <i class="fas fa-truck"></i> Fleet Management
+            </a>
+            <button class="nav-toggle" id="navToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+        <div class="nav-links" id="navLinks">
+            <a href="dashboard.html" class="nav-link active">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a>
+            <a href="vehicles.html" class="nav-link">
+                <i class="fas fa-car"></i> Vehicles
+            </a>
+            <a href="add_vehicle.html" class="nav-link">
+                <i class="fas fa-plus-circle"></i> Add Vehicle
+            </a>
+            <a href="login.html" class="nav-link">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <header>
+            <h1>Fleet Status Calendar Dashboard</h1>
+            <div class="date-controls">
+                <button id="prev-month"><i class="fas fa-chevron-left"></i></button>
+                <h2 id="current-month">May 2025</h2>
+                <button id="next-month"><i class="fas fa-chevron-right"></i></button>
+                <button id="today" class="today-btn">Today</button>
+            </div>
+        </header>
+
+        <div class="legend">
+            <div class="legend-item">
+                <span class="status-indicator available"></span>
+                <span>Available</span>
+            </div>
+            <div class="legend-item">
+                <span class="status-indicator rented"></span>
+                <span>Rented</span>
+            </div>
+            <div class="legend-item">
+                <span class="status-indicator reserved"></span>
+                <span>Reserved</span>
+            </div>
+            <div class="legend-item">
+                <span class="status-indicator maintenance"></span>
+                <span>Maintenance</span>
+            </div>
+        </div>
+
+        <!-- Occupation Section -->
+        <div class="occupation-section">
+            <div class="occupation-card">
+                <h3>Fleet Occupation This Month</h3>
+                <div id="fleet-occupation" class="occupation-meter">
+                    <div class="meter-bar"></div>
+                    <span class="meter-text">0%</span>
+                </div>
+            </div>
+
+            <div class="occupation-card">
+                <h3>Vehicle Occupations</h3>
+                <div id="vehicle-occupation" class="vehicle-occupation-list">
+                    <!-- Vehicle occupation items will be inserted here by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="calendar-table" class="calendar-table">
+                <thead>
+                    <tr id="date-header">
+                        <th class="vehicle-cell">Vehicle</th>
+                        <!-- Date headers will be dynamically generated -->
+                    </tr>
+                </thead>
+                <tbody id="calendar-body">
+                    <!-- Vehicle rows will be dynamically generated -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Modal for setting/editing status -->
+        <div id="status-modal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Set Vehicle Status</h2>
+                <form id="status-form">
+                    <input type="hidden" id="vehicle-id">
+                    <input type="hidden" id="status-date">
+                    
+                    <div class="form-group">
+                        <label for="status-select">Status:</label>
+                        <select id="status-select" required>
+                            <option value="available">Available</option>
+                            <option value="rented">Rented</option>
+                            <option value="reserved">Reserved</option>
+                            <option value="maintenance">Maintenance</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group duration-group">
+                        <label for="duration">Duration (days):</label>
+                        <input type="number" id="duration" min="1" max="1000" value="1">
+                        <div class="date-range-display">
+                            <span id="start-date-display"></span> to <span id="end-date-display"></span>
+                        </div>
+                    </div>
+
+                    <div id="rental-fields" class="conditional-fields">
+                        <div class="form-group">
+                            <label for="client-name">Client Name:</label>
+                            <input type="text" id="client-name">
+                        </div>
+                        <div class="form-group">
+                            <label for="client-phone">Client Phone:</label>
+                            <input type="tel" id="client-phone">
+                        </div>
+                        <div class="form-group">
+                            <label for="rental-price">Price ($/day):</label>
+                            <input type="number" id="rental-price" step="0.01">
+                        </div>
+                    </div>
+
+                    <div id="maintenance-fields" class="conditional-fields">
+                        <div class="form-group">
+                            <label for="maintenance-cause">Cause:</label>
+                            <textarea id="maintenance-cause"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" id="save-status">Save</button>
+                        <button type="button" id="delete-status" class="delete-btn">Delete</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+    
+    <!-- Add the JavaScript for mobile navigation toggle -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const navToggle = document.getElementById('navToggle');
+            const navLinks = document.getElementById('navLinks');
+            
+            // Mobile navigation toggle
+            navToggle.addEventListener('click', function() {
+                navLinks.classList.toggle('active');
+            });
+        });
+    </script>
+</body>
+</html>
