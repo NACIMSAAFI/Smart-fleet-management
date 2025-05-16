@@ -64,54 +64,118 @@ document.addEventListener('DOMContentLoaded', function() {
     function initializeDashboard() {
         fetchData().then(() => {
             renderCalendar();
+        }).catch(err => {
+            console.error("Dashboard initialization failed:", err);
+            // If login needed, redirect to login page
+            if (err.status === 401) {
+                alert("Your session has expired. Please login again.");
+                window.location.href = 'login.html';
+            }
         });
     }
 
     async function fetchData() {
         try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                throw { status: 401, message: "Authentication token not found" };
+            }
+            
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+            
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
             const firstDay = new Date(year, month, 1);
             const lastDay = new Date(year, month + 1, 0);
             
             // Fetch vehicles
-            const vehiclesResponse = await fetch('/api/vehicles');
-            vehicleData = await vehiclesResponse.json();
+            const vehiclesResponse = await fetch('/api/vehicles', {
+                headers: headers
+            });
             
-            // Fetch statuses
-            const statusesResponse = await fetch(
-                `/api/statuses?start_date=${formatDate(firstDay)}&end_date=${formatDate(lastDay)}`
-            );
-            const statusesResult = await statusesResponse.json();
-            
-            // Convert array to object with vehicleId-date key
-            statusData = {};
-            if (statusesResult.success && statusesResult.data) {
-                statusesResult.data.forEach(status => {
-                    if (status.status_date) {
-                        const key = `${status.vehicle_id}-${status.status_date}`;
-                        statusData[key] = status;
-                    }
-                });
+            if (!vehiclesResponse.ok) {
+                throw { 
+                    status: vehiclesResponse.status, 
+                    message: `Failed to fetch vehicles: ${vehiclesResponse.statusText}` 
+                };
             }
             
-            // Fetch durations
-            const durationsResponse = await fetch('/api/durations');
-            const durationsResult = await durationsResponse.json();
+            const vehiclesResult = await vehiclesResponse.json();
+            if (!vehiclesResult.success) {
+                throw { message: vehiclesResult.message || "Failed to fetch vehicles data" };
+            }
             
-            // Convert array to object with vehicleId-startDate key
-            durationData = {};
-            if (durationsResult.success && durationsResult.data) {
-                durationsResult.data.forEach(duration => {
-                    if (duration.start_date) {
-                        const key = `${duration.vehicle_id}-${duration.start_date}`;
-                        durationData[key] = duration;
+            // Ensure vehicleData is an array
+            vehicleData = Array.isArray(vehiclesResult.data) ? vehiclesResult.data : [];
+            
+            // Fetch statuses (with proper URL path)
+            const statusesResponse = await fetch(
+                `/api/vehicles/statuses?start_date=${formatDate(firstDay)}&end_date=${formatDate(lastDay)}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
                     }
-                });
+                }
+            );
+            
+            if (statusesResponse.ok) {
+                const statusesResult = await statusesResponse.json();
+                
+                // Convert array to object with vehicleId-date key
+                statusData = {};
+                if (statusesResult.success && Array.isArray(statusesResult.data)) {
+                    statusesResult.data.forEach(status => {
+                        if (status.status_date) {
+                            const key = `${status.vehicle_id}-${formatDate(status.status_date)}`;
+                            statusData[key] = status;
+                        }
+                    });
+                }
+                window.statusData = statusData;
+            } else {
+                console.warn(`Status data unavailable: ${statusesResponse.status} ${statusesResponse.statusText}`);
+                statusData = {};
+            }
+            
+            // Fetch durations (with proper URL path)
+            const durationsResponse = await fetch('/api/vehicles/durations', 
+                {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            
+            if (durationsResponse.ok) {
+                const durationsResult = await durationsResponse.json();
+                
+                // Convert array to object with vehicleId-startDate key
+                durationData = {};
+                if (durationsResult.success && Array.isArray(durationsResult.data)) {
+                    durationsResult.data.forEach(duration => {
+                        if (duration.start_date) {
+                            const key = `${duration.vehicle_id}-${duration.start_date}`;
+                            durationData[key] = duration;
+                        }
+                    });
+                }
+            } else {
+                console.warn(`Duration data unavailable: ${durationsResponse.status} ${durationsResponse.statusText}`);
+                durationData = {};
             }
         } catch (error) {
             console.error('Error fetching data:', error);
-            alert('Failed to load data. Please refresh the page.');
+            if (error.status === 401) {
+                // Authentication error - pass this up to be handled by initializeDashboard
+                throw error;
+            } else {
+                alert(`Failed to load data: ${error.message || 'Unknown error'}. Please refresh the page.`);
+            }
         }
     }
     
@@ -144,6 +208,18 @@ document.addEventListener('DOMContentLoaded', function() {
             th.innerHTML = `${day}<br><small>${date.toLocaleDateString('en-US', { weekday: 'short' })}</small>`;
             th.dataset.date = formatDate(date);
             dateHeader.appendChild(th);
+        }
+        
+        // Check if vehicleData is an array and has items
+        if (!Array.isArray(vehicleData) || vehicleData.length === 0) {
+            const emptyRow = document.createElement('tr');
+            const emptyCell = document.createElement('td');
+            emptyCell.colSpan = daysInMonth + 1;
+            emptyCell.textContent = 'No vehicles available. Please add a vehicle first.';
+            emptyCell.className = 'empty-message';
+            emptyRow.appendChild(emptyCell);
+            calendarBody.appendChild(emptyRow);
+            return;
         }
         
         // Create vehicle rows
@@ -249,7 +325,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         // Add client name if available
                         const statusKey = `${vehicleId}-${dateStr}`;
-                        if (statusData[statusKey]?.client_name && !isMaintenance) {
+                        if (statusData[statusKey]?.client_name && (statusClass === 'rented' || statusClass === 'reserved')) {
                             cell.innerHTML += `<small>${statusData[statusKey].client_name}</small>`;
                             cell.dataset.clientName = statusData[statusKey].client_name;
                             cell.dataset.clientPhone = statusData[statusKey].client_phone || '';
@@ -325,14 +401,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update the display function to reflect that we're showing rental occupation
     function displayOccupationRatios() {
+        if (!fleetOccupationDisplay || !vehicleOccupationDisplay) {
+            console.warn('Occupation display elements not found');
+            return;
+        }
+        
         const { vehicleOccupations, fleetOccupationRatio } = calculateOccupationRatios();
 
         // Update fleet occupation display
         const fleetMeterBar = fleetOccupationDisplay.querySelector('.meter-bar');
         const fleetMeterText = fleetOccupationDisplay.querySelector('.meter-text');
         
-        fleetMeterBar.style.width = `${fleetOccupationRatio}%`;
-        fleetMeterText.textContent = `${fleetOccupationRatio}%`;
+        if (fleetMeterBar && fleetMeterText) {
+            fleetMeterBar.style.width = `${fleetOccupationRatio}%`;
+            fleetMeterText.textContent = `${fleetOccupationRatio}%`;
+        }
 
         // Update vehicle occupations display
         vehicleOccupationDisplay.innerHTML = vehicleOccupations.map(vehicle => `
@@ -423,128 +506,117 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // ===== TOOLTIP FUNCTIONS =====
     
-    
-function showTooltip(event) {
-    const cell = event.currentTarget;
-    
-    // Only show tooltip for non-available cells
-    if (cell.classList.contains('available')) {
-        return;
-    }
-    
-    const vehicle = vehicleData.find(v => v.id == cell.dataset.vehicleId);
-    if (!vehicle) return;
-    
-    const vehicleInfo = `${vehicle.brand} ${vehicle.model} (${vehicle.plate_number})`;
-    const status = cell.dataset.status;
-    const startDate = new Date(cell.dataset.startDate).toLocaleDateString();
-    const endDate = new Date(cell.dataset.endDate).toLocaleDateString();
-    const currentDate = new Date(cell.dataset.date).toLocaleDateString();
-    const duration = (new Date(cell.dataset.endDate) - new Date(cell.dataset.startDate)) / (1000 * 60 * 60 * 24) + 1;
-    
-    // Get client information, searching multiple sources
-    let clientName = null;
-    let clientPhone = null;
-    let rentalPrice = null;
-    let maintenanceCause = null;
-    
-    // 1. First try to get from current cell's dataset
-    clientName = cell.dataset.clientName;
-    clientPhone = cell.dataset.clientPhone;
-    rentalPrice = cell.dataset.rentalPrice;
-    maintenanceCause = cell.dataset.cause;
-    
-    // 2. If this isn't the first day, try to get from the first day cell
-    if (!clientName && !cell.classList.contains('start-cell') && cell.dataset.startDate) {
-        const firstDayCell = document.querySelector(`.status-cell[data-vehicle-id="${cell.dataset.vehicleId}"][data-date="${cell.dataset.startDate}"]`);
-        if (firstDayCell) {
-            clientName = firstDayCell.dataset.clientName;
-            clientPhone = firstDayCell.dataset.clientPhone;
-            rentalPrice = firstDayCell.dataset.rentalPrice;
-            maintenanceCause = firstDayCell.dataset.cause;
+    function showTooltip(event) {
+        const cell = event.currentTarget;
+        // Only show tooltip for non-available cells
+        if (cell.classList.contains('available')) {
+            return;
         }
-    }
-    
-    // 3. If still not found, try to find the status data directly from statusData
-    if (!clientName && cell.dataset.startDate) {
-        const vehicleId = cell.dataset.vehicleId;
-        const startDateStr = cell.dataset.startDate;
-        const statusKey = `${vehicleId}-${startDateStr}`;
+        const vehicle = vehicleData.find(v => v.id == cell.dataset.vehicleId);
+        if (!vehicle) return;
+        const vehicleInfo = `${vehicle.brand} ${vehicle.model} (${vehicle.plate_number})`;
+        const status = cell.dataset.status;
+        const startDate = new Date(cell.dataset.startDate).toLocaleDateString();
+        const endDate = new Date(cell.dataset.endDate).toLocaleDateString();
+        const currentDate = new Date(cell.dataset.date).toLocaleDateString();
+        const duration = (new Date(cell.dataset.endDate) - new Date(cell.dataset.startDate)) / (1000 * 60 * 60 * 24) + 1;
+
+        // Robust client info lookup
+        let clientName = null;
+        let clientPhone = null;
+        let rentalPrice = null;
+        let maintenanceCause = null;
+
+        if (cell.dataset.startDate && cell.dataset.vehicleId) {
+            const vehicleId = cell.dataset.vehicleId;
+            const startDateStr = cell.dataset.startDate;
+            const statusKey = `${vehicleId}-${startDateStr}`;
+            // Debug log
+            console.log('Tooltip debug:', {
+                vehicleId,
+                startDate: startDateStr,
+                statusKey,
+                statusDataEntry: statusData[statusKey]
+            });
+            if (statusData[statusKey]) {
+                clientName = statusData[statusKey].client_name;
+                clientPhone = statusData[statusKey].client_phone;
+                rentalPrice = statusData[statusKey].rental_price;
+                maintenanceCause = statusData[statusKey].cause;
+            }
+        }
+        // Fallback to cell's dataset if not found in statusData
+        if (!clientName) clientName = cell.dataset.clientName;
+        if (!clientPhone) clientPhone = cell.dataset.clientPhone;
+        if (!rentalPrice) rentalPrice = cell.dataset.rentalPrice;
+        if (!maintenanceCause) maintenanceCause = cell.dataset.cause;
         
-        if (statusData[statusKey]) {
-            clientName = statusData[statusKey].client_name;
-            clientPhone = statusData[statusKey].client_phone;
-            rentalPrice = statusData[statusKey].rental_price;
-            maintenanceCause = statusData[statusKey].cause;
-        }
-    }
-    
-    // Create tooltip content
-    let tooltipContent = '';
-    let tooltipHeader = '';
-    
-    if (status === 'rented' || status === 'reserved') {
-        tooltipHeader = status === 'rented' ? 'RENTAL INFORMATION' : 'RESERVATION INFORMATION';
-        tooltipContent = `
-            <div class="tooltip-content">
-                <span class="tooltip-label">Vehicle:</span>
-                <span class="tooltip-value">${vehicleInfo}</span>
-                
-                <span class="tooltip-label">Period:</span>
-                <span class="tooltip-value">${startDate} to ${endDate} (${duration} days)</span>
-                
-                <span class="tooltip-label">Current Day:</span>
-                <span class="tooltip-value">${currentDate}</span>
-                
-                <span class="tooltip-label">Client:</span>
-                <span class="tooltip-value">${clientName || 'Not specified'}</span>
-                
-                <span class="tooltip-label">Phone:</span>
-                <span class="tooltip-value">${clientPhone || 'Not specified'}</span>
-        `;
+        // Create tooltip content
+        let tooltipContent = '';
+        let tooltipHeader = '';
         
-        // Only add price if it exists and is a number
-        if (rentalPrice && !isNaN(rentalPrice)) {
-            const totalPrice = (parseFloat(rentalPrice) * duration).toFixed(2);
-            tooltipContent += `
-                <span class="tooltip-label">Price:</span>
-                <span class="tooltip-value">$${rentalPrice}/day ($${totalPrice} total)</span>
+        if (status === 'rented' || status === 'reserved') {
+            tooltipHeader = status === 'rented' ? 'RENTAL INFORMATION' : 'RESERVATION INFORMATION';
+            tooltipContent = `
+                <div class="tooltip-content">
+                    <span class="tooltip-label">Vehicle:</span>
+                    <span class="tooltip-value">${vehicleInfo}</span>
+                    
+                    <span class="tooltip-label">Period:</span>
+                    <span class="tooltip-value">${startDate} to ${endDate} (${duration} days)</span>
+                    
+                    <span class="tooltip-label">Current Day:</span>
+                    <span class="tooltip-value">${currentDate}</span>
+                    
+                    <span class="tooltip-label">Client:</span>
+                    <span class="tooltip-value">${clientName || 'Not specified'}</span>
+                    
+                    <span class="tooltip-label">Phone:</span>
+                    <span class="tooltip-value">${clientPhone || 'Not specified'}</span>
             `;
-        } else {
-            tooltipContent += `
-                <span class="tooltip-label">Price:</span>
-                <span class="tooltip-value">Not specified</span>
+            
+            // Only add price if it exists and is a number
+            if (rentalPrice && !isNaN(rentalPrice)) {
+                const totalPrice = (parseFloat(rentalPrice) * duration).toFixed(2);
+                tooltipContent += `
+                    <span class="tooltip-label">Price:</span>
+                    <span class="tooltip-value">$${rentalPrice}/day ($${totalPrice} total)</span>
+                `;
+            } else {
+                tooltipContent += `
+                    <span class="tooltip-label">Price:</span>
+                    <span class="tooltip-value">Not specified</span>
+                `;
+            }
+        } else if (status === 'maintenance') {
+            tooltipHeader = 'MAINTENANCE INFORMATION';
+            tooltipContent = `
+                <div class="tooltip-content">
+                    <span class="tooltip-label">Vehicle:</span>
+                    <span class="tooltip-value">${vehicleInfo}</span>
+                    
+                    <span class="tooltip-label">Period:</span>
+                    <span class="tooltip-value">${startDate} to ${endDate} (${duration} days)</span>
+                    
+                    <span class="tooltip-label">Current Day:</span>
+                    <span class="tooltip-value">${currentDate}</span>
+                    
+                    <span class="tooltip-label">Cause:</span>
+                    <span class="tooltip-value">${maintenanceCause || 'Not specified'}</span>
+                </div>
             `;
         }
-    } else if (status === 'maintenance') {
-        tooltipHeader = 'MAINTENANCE INFORMATION';
-        tooltipContent = `
-            <div class="tooltip-content">
-                <span class="tooltip-label">Vehicle:</span>
-                <span class="tooltip-value">${vehicleInfo}</span>
-                
-                <span class="tooltip-label">Period:</span>
-                <span class="tooltip-value">${startDate} to ${endDate} (${duration} days)</span>
-                
-                <span class="tooltip-label">Current Day:</span>
-                <span class="tooltip-value">${currentDate}</span>
-                
-                <span class="tooltip-label">Cause:</span>
-                <span class="tooltip-value">${maintenanceCause || 'Not specified'}</span>
-            </div>
-        `;
+        
+        tooltipContent += '</div>';
+        
+        // Set tooltip content and show it
+        tooltip.innerHTML = `<div class="tooltip-header">${tooltipHeader}</div>${tooltipContent}`;
+        tooltip.className = `tooltip ${status}`;
+        tooltip.style.display = 'block';
+        
+        // Position tooltip
+        moveTooltip(event);
     }
-    
-    tooltipContent += '</div>';
-    
-    // Set tooltip content and show it
-    tooltip.innerHTML = `<div class="tooltip-header">${tooltipHeader}</div>${tooltipContent}`;
-    tooltip.className = `tooltip ${status}`;
-    tooltip.style.display = 'block';
-    
-    // Position tooltip
-    moveTooltip(event);
-}
     
     function hideTooltip() {
         tooltip.style.display = 'none';
@@ -707,7 +779,13 @@ function showTooltip(event) {
 
             // Check for conflicts
             const conflictCheck = await fetch(
-                `/api/conflicts?vehicleId=${vehicleId}&startDate=${startDateStr}&endDate=${endDateStr}`
+                `/api/vehicles/conflicts?vehicleId=${vehicleId}&startDate=${startDateStr}&endDate=${endDateStr}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
             );
             
             if (conflictCheck.ok) {
@@ -738,9 +816,12 @@ function showTooltip(event) {
             };
 
             // Save the status
-            const statusResponse = await fetch('/api/statuses', {
+            const statusResponse = await fetch('/api/vehicles/statuses', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(statusPayload)
             });
             
@@ -749,16 +830,23 @@ function showTooltip(event) {
             }
 
             // Save the duration
-            const durationResponse = await fetch('/api/durations', {
+            const durationResponse = await fetch('/api/vehicles/durations', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(durationPayload)
             });
             
             if (!durationResponse.ok) {
                 // If duration fails, delete the status we just created
-                await fetch(`/api/statuses/${vehicleId}/${startDateStr}`, {
-                    method: 'DELETE'
+                await fetch(`/api/vehicles/statuses/${vehicleId}/${startDateStr}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
+                    }
                 });
                 throw new Error('Failed to save duration');
             }
@@ -795,8 +883,12 @@ function showTooltip(event) {
                     throw new Error('Duration data not found');
                 }
     
-                const durationResponse = await fetch(`/api/durations/${vehicleId}/${formatDate(duration.start_date)}`, {
-                    method: 'DELETE'
+                const durationResponse = await fetch(`/api/vehicles/durations/${vehicleId}/${formatDate(duration.start_date)}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
+                    }
                 });
                 
                 if (!durationResponse.ok) {
@@ -805,8 +897,12 @@ function showTooltip(event) {
             }
     
             // Delete the status
-            const statusResponse = await fetch(`/api/statuses/${vehicleId}/${startDateStr}`, {
-                method: 'DELETE'
+            const statusResponse = await fetch(`/api/vehicles/statuses/${vehicleId}/${startDateStr}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'application/json'
+                }
             });
             
             if (!statusResponse.ok) {

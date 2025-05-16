@@ -28,7 +28,7 @@
       <a href="add_vehicle.html" class="nav-link">
         <i class="fas fa-plus-circle"></i> Add Vehicle
       </a>
-      <a href="login.html" class="nav-link">
+      <a href="#" class="nav-link" id="logoutBtn">
         <i class="fas fa-sign-out-alt"></i> Logout
       </a>
     </div>
@@ -75,6 +75,22 @@
     <div class="loading" id="loadingIndicator">
       <span class="spinner"></span> Loading vehicles...
     </div>
+    
+    <!-- Vehicle Details Modal -->
+    <div class="modal" id="vehicleDetailsModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Vehicle Details</h2>
+          <span class="close" id="closeModal">&times;</span>
+        </div>
+        <div class="modal-body" id="vehicleDetailsBody">
+          <!-- Vehicle details will be inserted here -->
+        </div>
+        <div class="modal-footer">
+          <button id="closeModalBtn" class="btn btn-secondary">Close</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -86,10 +102,31 @@
       const refreshBtn = document.getElementById('refreshBtn');
       const navToggle = document.getElementById('navToggle');
       const navLinks = document.getElementById('navLinks');
+      const logoutBtn = document.getElementById('logoutBtn');
+      const modal = document.getElementById('vehicleDetailsModal');
+      const closeModal = document.getElementById('closeModal');
+      const closeModalBtn = document.getElementById('closeModalBtn');
+      const vehicleDetailsBody = document.getElementById('vehicleDetailsBody');
+      
+      // Check if user is logged in
+      const token = localStorage.getItem('token');
+      if (!token) {
+        // Redirect to login if no token
+        window.location.href = 'login.html';
+        return;
+      }
       
       // Mobile navigation toggle
       navToggle.addEventListener('click', function() {
         navLinks.classList.toggle('active');
+      });
+      
+      // Logout functionality
+      logoutBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'login.html';
       });
       
       // Initialize vehicles array to store the data
@@ -122,13 +159,30 @@
         showLoading();
         
         try {
-          const res = await fetch('http://localhost:3000/api/vehicles');
+          const res = await fetch('http://localhost:3000/api/vehicles', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (res.status === 401) {
+            // Token expired or invalid
+            localStorage.removeItem('token');
+            window.location.href = 'login.html?expired=true';
+            return;
+          }
           
           if (!res.ok) {
             throw new Error(`Server responded with status: ${res.status}`);
           }
           
-          vehicles = await res.json();
+          const response = await res.json();
+          if (response.success) {
+            vehicles = response.data;
+          } else {
+            throw new Error(response.message || 'Failed to fetch vehicles');
+          }
           
           hideLoading();
           renderVehicles(vehicles);
@@ -152,7 +206,7 @@
       
       // Render vehicles table
       function renderVehicles(vehiclesToRender) {
-        if (vehiclesToRender.length === 0) {
+        if (!vehiclesToRender || vehiclesToRender.length === 0) {
           vehiclesTable.innerHTML = `
             <tr>
               <td colspan="6" class="no-data">
@@ -175,13 +229,13 @@
           
           row.innerHTML = `
             <td>${escapeHtml(vehicle.plate_number)}</td>
-            <td>${escapeHtml(vehicle.chassis_number)}</td>
+            <td>${escapeHtml(vehicle.chassis_number || '')}</td>
             <td>${escapeHtml(vehicle.brand)}</td>
             <td>${escapeHtml(vehicle.model)}</td>
-            <td><span class="badge badge-blue">${escapeHtml(String(vehicle.year))}</span></td>
+            <td><span class="badge badge-blue">${escapeHtml(String(vehicle.year || ''))}</span></td>
             <td>
-              <button class="btn btn-secondary btn-sm edit-btn" data-id="${vehicle.id}" title="Edit">
-                <i class="fas fa-edit"></i>
+              <button class="btn btn-secondary btn-sm view-btn" data-id="${vehicle.id}" title="View Details">
+                <i class="fas fa-eye"></i>
               </button>
               <button class="btn btn-danger btn-sm delete-btn" data-id="${vehicle.id}" title="Delete">
                 <i class="fas fa-trash"></i>
@@ -192,11 +246,11 @@
           vehiclesTable.appendChild(row);
         });
         
-        // Add event listeners to edit and delete buttons
-        document.querySelectorAll('.edit-btn').forEach(btn => {
+        // Add event listeners to view and delete buttons
+        document.querySelectorAll('.view-btn').forEach(btn => {
           btn.addEventListener('click', function() {
             const vehicleId = this.getAttribute('data-id');
-            window.location.href = `edit_vehicle.html?id=${vehicleId}`;
+            showVehicleDetails(vehicleId);
           });
         });
         
@@ -210,27 +264,93 @@
         });
       }
       
+      // Show vehicle details in modal
+      function showVehicleDetails(id) {
+        const vehicle = vehicles.find(v => v.id === parseInt(id));
+        if (!vehicle) return;
+        
+        vehicleDetailsBody.innerHTML = `
+          <div class="vehicle-detail-item">
+            <span class="detail-label"><i class="fas fa-id-card"></i> Plate Number:</span>
+            <span class="detail-value">${escapeHtml(vehicle.plate_number)}</span>
+          </div>
+          <div class="vehicle-detail-item">
+            <span class="detail-label"><i class="fas fa-fingerprint"></i> Chassis Number:</span>
+            <span class="detail-value">${escapeHtml(vehicle.chassis_number || '')}</span>
+          </div>
+          <div class="vehicle-detail-item">
+            <span class="detail-label"><i class="fas fa-tag"></i> Brand:</span>
+            <span class="detail-value">${escapeHtml(vehicle.brand)}</span>
+          </div>
+          <div class="vehicle-detail-item">
+            <span class="detail-label"><i class="fas fa-car-side"></i> Model:</span>
+            <span class="detail-value">${escapeHtml(vehicle.model)}</span>
+          </div>
+          <div class="vehicle-detail-item">
+            <span class="detail-label"><i class="fas fa-calendar-alt"></i> Year:</span>
+            <span class="detail-value">${escapeHtml(String(vehicle.year || ''))}</span>
+          </div>
+          <div class="vehicle-detail-item">
+            <span class="detail-label"><i class="fas fa-info-circle"></i> Status:</span>
+            <span class="detail-value">${escapeHtml(vehicle.status || 'available')}</span>
+          </div>
+        `;
+        
+        modal.style.display = 'block';
+      }
+      
+      // Close modal on X click
+      closeModal.addEventListener('click', function() {
+        modal.style.display = 'none';
+      });
+      
+      // Close modal on button click
+      closeModalBtn.addEventListener('click', function() {
+        modal.style.display = 'none';
+      });
+      
+      // Close modal on outside click
+      window.addEventListener('click', function(event) {
+        if (event.target === modal) {
+          modal.style.display = 'none';
+        }
+      });
+      
       // Delete vehicle
       async function deleteVehicle(id) {
         showLoading();
         
         try {
           const res = await fetch(`http://localhost:3000/api/vehicles/${id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
           });
+          
+          if (res.status === 401) {
+            // Token expired or invalid
+            localStorage.removeItem('token');
+            window.location.href = 'login.html?expired=true';
+            return;
+          }
           
           if (!res.ok) {
             throw new Error(`Server responded with status: ${res.status}`);
           }
           
-          // Remove from local array
-          vehicles = vehicles.filter(vehicle => vehicle.id !== id);
-          
-          hideLoading();
-          showMessage('Vehicle deleted successfully', 'success');
-          
-          // Re-render table
-          renderVehicles(vehicles);
+          const response = await res.json();
+          if (response.success) {
+            // Remove from local array
+            vehicles = vehicles.filter(vehicle => vehicle.id !== parseInt(id));
+            hideLoading();
+            showMessage('Vehicle deleted successfully', 'success');
+            // Re-render table
+            renderVehicles(vehicles);
+          } else {
+            throw new Error(response.message || 'Failed to delete vehicle');
+          }
           
         } catch (error) {
           console.error('Error deleting vehicle:', error);
@@ -250,11 +370,11 @@
         
         const filtered = vehicles.filter(vehicle => {
           return (
-            vehicle.plate_number.toLowerCase().includes(searchTerm) ||
-            vehicle.chassis_number.toLowerCase().includes(searchTerm) ||
-            vehicle.brand.toLowerCase().includes(searchTerm) ||
-            vehicle.model.toLowerCase().includes(searchTerm) ||
-            String(vehicle.year).includes(searchTerm)
+            (vehicle.plate_number && vehicle.plate_number.toLowerCase().includes(searchTerm)) ||
+            (vehicle.chassis_number && vehicle.chassis_number.toLowerCase().includes(searchTerm)) ||
+            (vehicle.brand && vehicle.brand.toLowerCase().includes(searchTerm)) ||
+            (vehicle.model && vehicle.model.toLowerCase().includes(searchTerm)) ||
+            (vehicle.year && String(vehicle.year).includes(searchTerm))
           );
         });
         

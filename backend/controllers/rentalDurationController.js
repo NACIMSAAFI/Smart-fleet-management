@@ -1,15 +1,10 @@
-const db = require('../config/db');
-
-// Helper function for date formatting
 const formatDate = (dateInput) => {
     const date = new Date(dateInput);
-    // Return local date string (YYYY-MM-DD)
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
-// Consolidated conflict checking
-const checkForConflicts = async (vehicleId, startDate, endDate, excludeId = null) => {
-    const [conflicts] = await db.promise().query(`
+const checkForConflicts = async (userDB, vehicleId, startDate, endDate, excludeId = null) => {
+    const [conflicts] = await userDB.promise().query(`
         SELECT 
             start_date, 
             end_date, 
@@ -40,51 +35,51 @@ exports.setRentalDuration = async (req, res) => {
         start_date: startDate, 
         end_date: endDate, 
         is_maintenance: isMaintenance = false,
-        is_reservation: isReservation = false  // Default to false if not provided
+        is_reservation: isReservation = false
     } = req.body;
 
-    // Debug log the incoming data
-    console.log("Incoming duration data:", {
-        vehicleId, 
-        startDate, 
-        endDate, 
-        isMaintenance, 
-        isReservation
-    });
-
-
     if (!vehicleId || !startDate || !endDate) {
-        return res.status(400).json({ message: 'All fields are required' });
+        return res.status(400).json({ 
+            success: false,
+            message: 'All fields are required' 
+        });
     }
 
     try {
-        await db.promise().query('START TRANSACTION');
+        await req.userDB.promise().query('START TRANSACTION');
         
-        // Validate dates
         const start = new Date(startDate);
         const end = new Date(endDate);
         
         if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-            return res.status(400).json({ message: 'Invalid date format' });
+            return res.status(400).json({ 
+                success: false,
+                message: 'Invalid date format' 
+            });
         }
         if (end < start) {
-            return res.status(400).json({ message: 'End date must be after start date' });
+            return res.status(400).json({ 
+                success: false,
+                message: 'End date must be after start date' 
+            });
         }
 
-        // Check vehicle exists
-        const [vehicle] = await db.promise().query(
+        const [vehicle] = await req.userDB.promise().query(
             'SELECT id FROM vehicles WHERE id = ?', 
             [vehicleId]
         );
         if (!vehicle.length) {
-            return res.status(404).json({ message: 'Vehicle not found' });
+            return res.status(404).json({ 
+                success: false,
+                message: 'Vehicle not found' 
+            });
         }
 
-        // Check for conflicts
-        const conflict = await checkForConflicts(vehicleId, startDate, endDate);
+        const conflict = await checkForConflicts(req.userDB, vehicleId, startDate, endDate);
         if (conflict) {
-            await db.promise().query('ROLLBACK');
+            await req.userDB.promise().query('ROLLBACK');
             return res.status(409).json({ 
+                success: false,
                 message: 'Vehicle already booked for these dates',
                 conflict: {
                     startDate: formatDate(conflict.start_date),
@@ -94,8 +89,7 @@ exports.setRentalDuration = async (req, res) => {
             });
         }
 
-        // Insert/update duration
-        await db.promise().query(`
+        await req.userDB.promise().query(`
             INSERT INTO rental_durations (vehicle_id, start_date, end_date, is_maintenance, is_reservation)
             VALUES (?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE 
@@ -104,7 +98,7 @@ exports.setRentalDuration = async (req, res) => {
                 is_reservation = VALUES(is_reservation)
         `, [vehicleId, startDate, endDate, isMaintenance ? 1 : 0, isReservation ? 1 : 0]);
 
-        await db.promise().query('COMMIT');
+        await req.userDB.promise().query('COMMIT');
         
         res.status(201).json({ 
             success: true,
@@ -112,7 +106,7 @@ exports.setRentalDuration = async (req, res) => {
         });
 
     } catch (err) {
-        await db.promise().query('ROLLBACK');
+        await req.userDB.promise().query('ROLLBACK');
         console.error('Error setting duration:', err);
         res.status(500).json({ 
             success: false,
@@ -143,7 +137,6 @@ exports.getRentalDurations = async (req, res) => {
         
         const params = [];
         
-        // Apply filters if provided
         if (vehicleId || startDate || endDate) {
             query += ' WHERE ';
             const conditions = [];
@@ -169,7 +162,7 @@ exports.getRentalDurations = async (req, res) => {
         
         query += ' ORDER BY d.start_date';
         
-        const [durations] = await db.promise().query(query, params);
+        const [durations] = await req.userDB.promise().query(query, params);
         
         res.status(200).json({
             success: true,
@@ -188,8 +181,7 @@ exports.deleteRentalDuration = async (req, res) => {
     const { vehicleId, startDate } = req.params;
 
     try {
-        // No need to reformat the date since we're sending it correctly formatted
-        const [result] = await db.promise().query(`
+        const [result] = await req.userDB.promise().query(`
             DELETE FROM rental_durations
             WHERE vehicle_id = ? AND start_date = ?
         `, [vehicleId, startDate]);

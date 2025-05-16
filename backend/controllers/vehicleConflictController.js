@@ -1,5 +1,3 @@
-const db = require('../config/db');
-
 const formatDate = (date) => date ? new Date(date).toISOString().split('T')[0] : null;
 
 exports.checkConflicts = async (req, res) => {
@@ -13,8 +11,7 @@ exports.checkConflicts = async (req, res) => {
     }
 
     try {
-        // Check vehicle exists
-        const [vehicle] = await db.promise().query(
+        const [vehicle] = await req.userDB.promise().query(
             'SELECT id FROM vehicles WHERE id = ?', 
             [vehicleId]
         );
@@ -26,8 +23,7 @@ exports.checkConflicts = async (req, res) => {
             });
         }
 
-        // Check for duration conflicts
-        const [durations] = await db.promise().query(`
+        const [durations] = await req.userDB.promise().query(`
             SELECT 
                 start_date, 
                 end_date, 
@@ -55,8 +51,7 @@ exports.checkConflicts = async (req, res) => {
             });
         }
 
-        // Check for status conflicts
-        const [statuses] = await db.promise().query(`
+        const [statuses] = await req.userDB.promise().query(`
             SELECT status_date, status 
             FROM vehicle_statuses 
             WHERE vehicle_id = ? 

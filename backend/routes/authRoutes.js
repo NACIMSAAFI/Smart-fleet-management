@@ -14,4 +14,12 @@ router.get('/dashboard', verifyToken, (req, res) => {
     });
   });
   
+router.get('/verify', verifyToken, (req, res) => {
+  res.json({ 
+    user: req.user,
+    database: `fleet_user_${req.user.id}`,
+    message: "Token is valid"
+  });
+  console.log(`Serving request for user ${req.user.id} on database fleet_user_${req.user.id}`);
+});
 module.exports = router;

@@ -123,6 +123,14 @@
       const navToggle = document.getElementById('navToggle');
       const navLinks = document.getElementById('navLinks');
       
+      // Check if user is logged in
+      const token = localStorage.getItem('token');
+      if (!token) {
+        // Redirect to login if no token
+        window.location.href = 'login.html';
+        return;
+      }
+      
       // Mobile navigation toggle
       navToggle.addEventListener('click', function() {
         navLinks.classList.toggle('active');
@@ -213,6 +221,16 @@
           return;
         }
         
+        // Get token from localStorage
+        const token = localStorage.getItem('token');
+        if (!token) {
+          showMessage('You are not logged in. Please log in to add a vehicle.', 'error');
+          setTimeout(() => {
+            window.location.href = 'login.html';
+          }, 2000);
+          return;
+        }
+        
         // Prepare data
         const vehicle = {
           plate_number: plateInput.value.trim(),
@@ -230,17 +248,19 @@
         try {
           const res = await fetch('http://localhost:3000/api/vehicles', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`  // Add the JWT token in the Authorization header
+            },
             body: JSON.stringify(vehicle)
           });
-          
-          const data = await res.json();
           
           // Hide loading indicator
           loadingIndicator.style.display = 'none';
           submitBtn.disabled = false;
           
           if (res.ok) {
+            const data = await res.json();
             // Show success message
             showMessage(data.message || 'Vehicle registered successfully!', 'success');
             
@@ -251,8 +271,18 @@
             setTimeout(() => {
               window.location.href = 'vehicles.html';
             }, 2000);
+          } else if (res.status === 401) {
+            // Unauthorized - token expired or invalid
+            showMessage('Your session has expired. Please login again.', 'error');
+            localStorage.removeItem('token'); // Clear the invalid token
+            
+            // Redirect to login page after 2 seconds
+            setTimeout(() => {
+              window.location.href = 'login.html';
+            }, 2000);
           } else {
-            // Show error message
+            // Other error
+            const data = await res.json().catch(() => ({}));
             showMessage(data.message || 'Failed to register vehicle. Please try again.', 'error');
           }
           

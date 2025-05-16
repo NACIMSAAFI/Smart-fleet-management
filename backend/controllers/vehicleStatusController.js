@@ -1,8 +1,5 @@
-const db = require('../config/db');
-
 const formatDate = (dateInput) => {
     const date = new Date(dateInput);
-    // Return local date string (YYYY-MM-DD)
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
@@ -18,26 +15,29 @@ exports.setVehicleStatus = async (req, res) => {
     } = req.body;
 
     try {
-        // Validate required fields
         if (!vehicleId || !statusDate || !status) {
-            return res.status(400).json({ message: 'vehicleId, statusDate and status are required' });
+            return res.status(400).json({ 
+                success: false,
+                message: 'vehicleId, statusDate and status are required' 
+            });
         }
 
-        // Check if vehicle exists
-        const [vehicle] = await db.promise().query(
+        const [vehicle] = await req.userDB.promise().query(
             'SELECT id FROM vehicles WHERE id = ?', 
             [vehicleId]
         );
         
         if (!vehicle.length) {
-            return res.status(404).json({ message: 'Vehicle not found' });
+            return res.status(404).json({ 
+                success: false,
+                message: 'Vehicle not found' 
+            });
         }
 
-        // Process optional fields
         const processedPrice = rentalPrice ? parseFloat(rentalPrice) : null;
         const processedCause = cause || null;
 
-        await db.promise().query(`
+        await req.userDB.promise().query(`
             INSERT INTO vehicle_statuses 
             (vehicle_id, status_date, status, client_name, client_phone, rental_price, cause)
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -57,10 +57,17 @@ exports.setVehicleStatus = async (req, res) => {
             processedCause
         ]);
 
-        res.json({ success: true, message: "Status updated successfully" });
+        res.json({ 
+            success: true, 
+            message: "Status updated successfully" 
+        });
     } catch (err) {
         console.error('Error updating status:', err);
-        res.status(500).json({ success: false, message: 'Database error during status update' });
+        res.status(500).json({ 
+            success: false, 
+            message: 'Database error during status update',
+            error: err.message
+        });
     }
 };
 
@@ -84,7 +91,6 @@ exports.getStatuses = async (req, res) => {
         
         let params = [formatDate(startDate), formatDate(endDate)];
         
-        // Add vehicle filter if provided
         if (vehicleId) {
             query += ' AND vs.vehicle_id = ?';
             params.push(vehicleId);
@@ -92,7 +98,7 @@ exports.getStatuses = async (req, res) => {
         
         query += ' ORDER BY vs.status_date, v.id';
         
-        const [results] = await db.promise().query(query, params);
+        const [results] = await req.userDB.promise().query(query, params);
         
         res.json({
             success: true,
@@ -102,7 +108,8 @@ exports.getStatuses = async (req, res) => {
         console.error('Error fetching statuses:', err);
         res.status(500).json({ 
             success: false, 
-            message: 'Database error while fetching statuses' 
+            message: 'Database error while fetching statuses',
+            error: err.message
         });
     }
 };
@@ -111,7 +118,7 @@ exports.deleteStatus = async (req, res) => {
     const { vehicleId, date } = req.params;
     
     try {
-        const [result] = await db.promise().query(`
+        const [result] = await req.userDB.promise().query(`
             DELETE FROM vehicle_statuses 
             WHERE vehicle_id = ? AND status_date = ?
         `, [vehicleId, formatDate(date)]);
