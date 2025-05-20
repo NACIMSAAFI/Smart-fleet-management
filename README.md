@@ -161,32 +161,8 @@ Assign appropriate permissions
 
 
 ## 📁 Project Structure
-smart-fleet/
-│
-├── backend/
-│   ├── controllers/       # Request handlers
-│   ├── middleware/        # Auth and validation middleware
-│   ├── models/            # Database models
-│   ├── routes/            # API endpoints
-│   ├── utils/             # Helper functions
-│   ├── config/            # Configuration files
-│   └── server.js          # Entry point
-│
-├── frontend/
-│   ├── public/            # Static files
-│   ├── src/
-│   │   ├── components/    # Reusable UI components
-│   │   ├── pages/         # Page components
-│   │   ├── services/      # API service layer
-│   │   ├── context/       # React context providers
-│   │   ├── utils/         # Helper functions
-│   │   ├── styles/        # Global styles
-│   │   └── App.jsx        # Main application component
-│   │
-│   └── package.json       # Frontend dependencies
-│
-├── docs/                  # Documentation
-└── README.md              # Project overview
+
+![Project Structure](./assets/structure.png)
 
 # 📚 Key Learnings
 This project provided valuable experience in:
