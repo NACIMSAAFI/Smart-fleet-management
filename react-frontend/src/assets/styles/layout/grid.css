@@ -1,0 +1,28 @@
+.container {
+  max-width: var(--container-width);
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 -0.75rem;
+}
+
+.col {
+  flex: 1;
+  padding: 0 0.75rem;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.content-container {
+  flex: 1;
+  padding: 1.5rem;
+  overflow: auto;
+}

@@ -1,0 +1,102 @@
+.date-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+  padding: 0.5rem 0;
+}
+
+.date-navigation h2 {
+  min-width: 180px;
+  text-align: center;
+  margin: 0;
+}
+
+.date-navigation button:not(.today-button) {
+  background-color: var(--light);
+  border: 1px solid var(--gray-300);
+  padding: 0.5rem 1rem;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.today-button {
+  position: absolute;
+  right: 0;
+  background-color: var(--primary) !important;
+  color: white;
+}
+
+.calendar-container {
+  min-height: 500px;
+  width: 100%;
+  overflow-x: auto;
+  box-shadow: var(--box-shadow);
+  border-radius: var(--border-radius);
+  background-color: white;
+}
+
+.calendar-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.status-calendar {
+  width: 100%;
+  border-collapse: separate; /* Changed from collapse to separate */
+  border-spacing: 0; /* Ensures cells remain adjacent */
+  white-space: nowrap;
+  border: 1px solid var(--gray-300); /* Adding border to the entire table */
+}
+
+.date-header th {
+  min-width: 40px;
+  position: sticky;
+  top: 0;
+  background-color: var(--light);
+  z-index: 1;
+  text-align: center;
+  border: 1px solid var(--gray-300); /* Adding border to header cells */
+  border-bottom: 2px solid var(--gray-400); /* Stronger bottom border for headers */
+}
+
+.vehicle-header {
+  position: sticky;
+  left: 0;
+  background-color: var(--light);
+  z-index: 2;
+  min-width: 180px;
+  border-right: 2px solid var(--gray-400); /* Stronger right border */
+  border-bottom: 2px solid var(--gray-400); /* Stronger bottom border */
+}
+
+.vehicle-cell {
+  position: sticky;
+  left: 0;
+  background-color: white;
+  z-index: 1;
+  border-right: 2px solid var(--gray-300);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0.5rem; /* Adding padding for better readability */
+  border: 1px solid var(--gray-300); /* Consistent border */
+}
+
+.date-cell {
+  text-align: center;
+  font-size: 0.85rem;
+  padding: 0.5rem 0; /* Adding vertical padding */
+}
+
+.weekend {
+  background-color: var(--gray-200);
+}
+
+.today {
+  background-color: rgba(52, 152, 219, 0.15);
+  font-weight: bold;
+}

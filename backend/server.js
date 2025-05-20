@@ -3,6 +3,8 @@ const express = require('express');
 const path = require('path');
 const { authDB } = require('./config/db');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
+const cors = require('cors');
+
 
 const app = express();
 
@@ -41,6 +43,12 @@ app.use((err, req, res, next) => {
   });
 });
 
+const corsOptions = {
+  origin: ['http://localhost:5173'], // Your Vite frontend URL
+  credentials: true
+};
+
+app.use(cors(corsOptions));
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

@@ -1,0 +1,122 @@
+/* Base Styles */
+@import './base/variables.css';
+@import './base/reset.css';
+@import './base/typography.css';
+
+/* Component Styles */
+@import './components/buttons.css';
+@import './components/forms.css';
+@import './components/tables.css';
+@import './components/cards.css';
+@import './components/modal.css';
+@import './components/navigation.css';
+
+/* Layout Styles */
+@import './layout/grid.css';
+@import './layout/dashboard.css';
+
+/* Feature Styles */
+@import './features/calendar.css';
+@import './features/metrics.css';
+@import './features/status.css';
+
+/* Auth Pages */
+.auth-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #f5f7fa;
+  padding: 1rem;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  background-color: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  padding: 2rem;
+}
+
+.auth-card h2 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+/* Vehicle Details */
+.vehicle-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: var(--gray-600);
+  font-size: 0.9rem;
+}
+
+.detail-value {
+  font-size: 1.1rem;
+}
+
+/* Loading State */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: var(--gray-600);
+  gap: 0.75rem;
+}
+
+.spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top-color: var(--primary);
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .action-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .search-box {
+    max-width: none;
+  }
+  
+  .action-buttons {
+    justify-content: space-between;
+  }
+  
+  .status-legend {
+    flex-wrap: wrap;
+    justify-content: space-around;
+  }
+  
+  .status-modal {
+    width: 95%;
+  }
+}

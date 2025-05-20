@@ -1,0 +1,76 @@
+.metrics-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.occupation-chart-container {
+  background-color: white;
+  border-radius: var(--border-radius);
+  padding: 1.25rem;
+  box-shadow: var(--box-shadow);
+}
+
+.chart-wrapper {
+  height: 300px;
+  position: relative;
+}
+
+.meter-section {
+  background-color: white;
+  border-radius: var(--border-radius);
+  padding: 1.25rem;
+  box-shadow: var(--box-shadow);
+}
+
+.meter-section h3 {
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+.occupation-meter {
+  height: 30px;
+  background-color: var(--gray-200);
+  border-radius: 15px;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.meter-bar {
+  height: 100%;
+  background-color: var(--primary);
+  transition: width 1s ease-in-out;
+}
+
+.meter-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-weight: 600;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+  font-size: 0.9rem;
+}
+
+.vehicle-occupation-item {
+  margin-bottom: 1rem;
+}
+
+.vehicle-name {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vehicle-occupation-meter {
+  height: 20px;
+  background-color: var(--gray-200);
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+}

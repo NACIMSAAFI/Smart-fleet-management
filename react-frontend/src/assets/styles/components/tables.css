@@ -1,0 +1,40 @@
+/* === Tables === */
+.table-container {
+overflow-x: auto;
+border-radius: var(--border-radius);
+box-shadow: var(--box-shadow);
+margin-bottom: 2rem;
+}
+table {
+width: 100%;
+border-collapse: collapse;
+background-color: white;
+}
+th, td {
+padding: 0.875rem 1rem;
+text-align: left;
+}
+th {
+background-color: var(--gray-100);
+font-weight: 600;
+color: var(--gray-700);
+border-bottom: 2px solid var(--gray-300);
+}
+td {
+border-bottom: 1px solid var(--gray-200);
+}
+tr:last-child td {
+border-bottom: none;
+}
+tr:hover {
+background-color: rgba(0, 0, 0, 0.02);
+}
+.table-action-cell {
+display: flex;
+gap: 0.5rem;
+}
+.no-data {
+text-align: center;
+color: var(--gray-600);
+padding: 2rem 0;
+}
